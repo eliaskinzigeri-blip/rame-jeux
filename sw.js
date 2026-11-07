@@ -1,7 +1,7 @@
 // Cache hors-ligne simple : l'app marche sans réseau une fois ouverte.
-const CACHE = 'rame-jeux-v2';
+const CACHE = 'rame-jeux-v3';
 const FILES = ['./', 'index.html', 'style.css', 'manifest.webmanifest', 'icon.svg',
-  'js/vendor/supabase.js', 'js/cloud.js', 'js/rower.js', 'js/sources.js', 'js/kit.js', 'js/main.js',
+  'js/cloud.js', 'js/rower.js', 'js/sources.js', 'js/kit.js', 'js/main.js',
   'js/games/regate.js', 'js/games/envol.js', 'js/games/cadence.js', 'js/games/corde.js', 'js/games/kraken.js'];
 self.addEventListener('install', e => e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting())));
 self.addEventListener('activate', e => e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())));
