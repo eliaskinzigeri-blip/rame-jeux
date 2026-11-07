@@ -10,7 +10,7 @@
     create(opts) {
       const ramp = { facile: 0.006, normal: 0.01, dur: 0.016 }[opts.diff || 'normal'];
       const startV = { facile: 1.8, normal: 2.2, dur: 2.6 }[opts.diff || 'normal'];
-      let t = 0, me = 40, kr = 0, kv = startV, slow = 0, msg = '', msgT = 0, cls = '', warned = false;
+      let t = 0, me = 40, kr = 0, kv = startV, slow = 0, msg = '', msgT = 0, cls = '', warned = false, grabUntil = 0, grabCd = 0, lvlStep = 0;
       const items = []; let nextX = 110;
       return {
         update(dt) {
@@ -22,13 +22,19 @@
           while (nextX < me + 200) { items.push({ x: nextX }); nextX += 90 + Math.random() * 60; }
           items.forEach(it => {
             if (!it.hit && !it.missed && me >= it.x) {
-              if (Rower.speed > kv) { it.hit = true; it.hitAt = performance.now() / 1000; slow = 3; Sound.good(); msg = 'Kraken ralenti !'; cls = 'ok'; msgT = 2; }
+              if (Rower.speed > kv) { it.hit = true; it.hitAt = performance.now() / 1000; slow = 3; Sound.good(); msg = 'Kraken ralenti !'; cls = 'ok'; msgT = 2; Intensity.bump(-0.25, 4, 'Bouée : résistance ▼'); grabUntil = 0; }
               else { it.missed = true; Sound.bad(); msg = 'Bouée ratée : trop lent'; cls = 'low'; msgT = 1.5; }
             }
           });
           while (items.length && items[0].x < me - 25) items.shift();
           msgT -= dt;
           const gap = me - kr;
+          // le kraken attrape le bateau avec une tentacule : résistance en hausse pendant 5 s
+          grabCd -= dt;
+          if (gap < 9 && grabCd <= 0) { grabUntil = t + 5; grabCd = 12; Intensity.bump(0.3, 5, "Le kraken t'agrippe ! Résistance ▲"); Sound.bad(); }
+          // plus la fuite dure, plus l'eau devient lourde
+          const step = Math.floor(t / 90);
+          if (step > lvlStep) { lvlStep = step; Intensity.nudge(0.06, "L'eau s'épaissit : résistance ▲"); }
           if (gap < 12 && !warned) { warned = true; Sound.bad(); }
           if (gap > 18) warned = false;
           if (gap <= 0) {
@@ -36,7 +42,7 @@
             this.result = { score: Math.round(me - 40), display: Math.round(me - 40) + ' m', detail: `Tenu ${fmtClock(t)} · kraken final à ${pace(kv)} /500 m` };
           }
         },
-        state() { return { boats: [meBoat(me)], kraken: kr - 6, targets: items.slice(0, 8), laneMin: 0, laneCount: 1 }; },
+        state() { return { boats: [meBoat(me)], kraken: kr - 6, grab: t < grabUntil, targets: items.slice(0, 8), laneMin: 0, laneCount: 1 }; },
         hud() {
           const gap = Math.max(0, me - kr);
           return {

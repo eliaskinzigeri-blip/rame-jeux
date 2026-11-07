@@ -344,6 +344,11 @@ const World = {
     this._ripple = (x, z) => { const r = rings[ringIdx++ % rings.length]; r.m.position.x = x; r.m.position.z = z; r.t = 0; };
 
     const kraken = makeKraken(); kraken.visible = false; scene.add(kraken);
+    // tentacule qui agrippe le bateau
+    const grabArm = [];
+    const armMat = new THREE.MeshStandardMaterial({ color: 0x6a2347, roughness: 0.5, emissive: 0x16030b });
+    for (let i = 0; i < 26; i++) { const sph = new THREE.Mesh(new THREE.SphereGeometry(0.42 - i * 0.012, 10, 8), armMat); sph.visible = false; scene.add(sph); grabArm.push(sph); }
+    this.grabArm = grabArm;
 
     Object.assign(this, { cheapWater, renderer, scene, camera, water, far, buoys, signs, finish, targets, rings, kraken, dir, boats: new Map(), camPos: new THREE.Vector3(-8, 2.5, 9), camLook: new THREE.Vector3() });
     this.ready = true;
@@ -450,6 +455,16 @@ const World = {
     // kraken
     if (state.kraken != null) { this.kraken.visible = true; this.kraken.position.set(state.kraken, 0, mz); this.kraken.userData.update(t); }
     else this.kraken.visible = false;
+    const grab = state.grab && state.kraken != null;
+    this.grabArm.forEach((s, i) => {
+      s.visible = grab; if (!grab) return;
+      const f = i / (this.grabArm.length - 1), x0 = state.kraken + 3.5, x1 = mx - 3.9;
+      const w = Math.sin(t * 6 + f * 5) * 0.25 * (1 - f);
+      s.position.set(x0 + (x1 - x0) * f, 0.3 + Math.sin(f * Math.PI) * 4.2 + w, mz + Math.sin(f * 7 + t * 3) * 0.5 * (1 - f));
+    });
+    // vent de face : eau agitée
+    const dist = state.wind > 0 ? 3.2 : state.wind < 0 ? 0.5 : 0.9;
+    this.water.material.uniforms.distortionScale.value += (dist - this.water.material.uniforms.distortionScale.value) * Math.min(1, dt);
 
     // caméra
     const speed = me ? me.speed || 0 : 0;

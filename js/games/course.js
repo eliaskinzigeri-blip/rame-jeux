@@ -19,7 +19,7 @@
       const cols = [[0x2a4f8f, 0x2a4f8f, 0x63a4ff], [0x8f2a3a, 0x8f2a3a, 0xff6b81], [0x5a3a8f, 0x5a3a8f, 0xc49bff]];
       const bots = defs.map((p, i) => ({ id: 'bot' + i, name: names[i], pace: p, d: 0, lane: [1, -1, 2][i], spm: 22 + Math.round(500 / p * 1.5), off: i * 0.7, hull: cols[i][0], suit: cols[i][1], accent: cols[i][2] }));
       const rec = Ghost.recorder();
-      let t = 0, me = 0, done = false, lastSplit = 0, msg = '', msgT = 0;
+      let t = 0, me = 0, done = false, lastSplit = 0, msg = '', msgT = 0, coachT = 30;
       const finishTimes = {};
       return {
         update(dt) {
@@ -29,6 +29,13 @@
             const v = 500 / b.pace * (1 + 0.035 * Math.sin(t / 6 + i * 2) + (b.d > dist * 0.85 ? 0.04 : 0));
             if (b.d < dist) { b.d = Math.min(dist, b.d + v * dt); if (b.d >= dist) finishTimes[b.id] = t; }
           });
+          // coach : trop facile → résistance ▲, largué → ▼ (toutes les 20 s)
+          if (!done && t >= coachT) {
+            coachT = t + 20;
+            const lead = Math.max(...bots.map(b => b.d));
+            if (me - lead > 15) Intensity.nudge(0.08, 'Trop facile ? Résistance ▲');
+            else if (lead - me > 30) Intensity.nudge(-0.08, 'On allège un peu : résistance ▼');
+          }
           const split = Math.floor(me / 250) * 250;
           if (split > lastSplit && split < dist) { lastSplit = split; msg = `${split} m · ${fmtTime(t)}`; msgT = 2.5; Sound.split(); }
           msgT -= dt;

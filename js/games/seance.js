@@ -17,16 +17,22 @@
     scoreUnit: '%',
     create(opts) {
       const steps = P[opts.prog] || P['Express 12 min'];
-      let i = 0, st = 0, sd = 0, t = 0, me = 0, inZone = 0, counted = 0, ann = 3;
+      let i = 0, st = 0, sd = 0, t = 0, me = 0, inZone = 0, counted = 0, ann = 3, easyT = 0, bonus = 0;
+      const lvlFor = (cpm) => cpm >= 28 ? 0.7 : cpm >= 25 ? 0.6 : cpm >= 22 ? 0.45 : 0.28;
+      Intensity.set(lvlFor(steps[0][2]));
       return {
         update(dt) {
           t += dt; st += dt; me += Rower.speed * dt; sd += Rower.speed * dt;
           const [, len, cpm] = steps[i];
           if (t > 8) { counted += dt; if (Math.abs(Rower.spm - cpm) <= 2) inZone += dt; }
+          // effort : trop à l'aise (cadence au-dessus de la cible) pendant 12 s → résistance ▲
+          if (cpm >= 24 && Rower.spm > cpm + 3) easyT += dt; else easyT = 0;
+          if (easyT > 12) { easyT = 0; bonus = Math.min(0.25, bonus + 0.06); Intensity.set(lvlFor(cpm) + bonus, 'Tu es à l\'aise : résistance ▲'); }
           const left = typeof len === 'object' ? len.m - sd : len - st;
           if (typeof len !== 'object' && left <= 3 && left > 0 && Math.ceil(left) !== ann) { ann = Math.ceil(left); Sound.tick(); }
           if (left <= 0) {
             i++; st = 0; sd = 0; ann = 3; Sound.split();
+            if (i < steps.length) { const c2 = steps[i][2]; Intensity.set(lvlFor(c2) + (c2 >= 24 ? bonus : 0), c2 >= 24 ? 'Effort : résistance ▲' : 'Récup : résistance ▼'); }
             if (i >= steps.length) {
               const pct = Math.round(inZone / Math.max(1, counted) * 100);
               this.over = true;

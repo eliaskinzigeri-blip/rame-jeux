@@ -26,6 +26,15 @@ L'app reprend ce que proposent les apps de rameur connecté comme EXR (balade, s
 - **Fuite du kraken** : jeu de survie, le monstre accélère sans cesse.
 - **Cadence** : jeu de rythme, chaque attaque doit tomber sur le temps.
 
+## Résistance pilotée par le jeu
+Avec une console Bluetooth FTMS qui l'accepte, le jeu change la **vraie résistance**. L'app passe par le point de contrôle (opcode 0x04) et lit la plage de résistance de la console.
+Sinon, la résistance est **simulée** : le bateau devient plus lourd dans le jeu. On peut désactiver la fonction à chaque partie.
+- **Kraken** : quand il t'attrape avec une tentacule, résistance en hausse pendant 5 s. Une bouée passée assez vite la fait baisser. L'eau s'épaissit toutes les 90 s.
+- **Course** : un coach monte la résistance si tu as plus de 15 m d'avance (trop facile) et la baisse si tu es largué.
+- **Séances** : résistance forte pendant l'effort et légère pendant la récup. Elle monte si tu es trop à l'aise.
+- **Chasse aux bouées** : résistance en hausse à chaque série de 3 bouées.
+- **Balade** : rafales de vent de face (plus dur, eau agitée) ou de vent arrière (plus facile).
+
 ## Latence
 Une console Bluetooth signale chaque coup 0,5 à 1 s après l'attaque réelle (≈ 1 trame/s, compteur incrémenté en fin de poussée).
 L'app corrige ce retard de trois façons :

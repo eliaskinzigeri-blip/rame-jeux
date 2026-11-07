@@ -30,7 +30,64 @@
     return d;
   }
 
+  const FEATURE = 0x2acc, RES_RANGE = 0x2ad6;
+
+  /* Contrôle de la résistance via le Fitness Machine Control Point (0x2AD9).
+     Opcodes : 0x00 prise de contrôle, 0x07 démarrer, 0x04 résistance cible.
+     Réponse (indication) : [0x80, opcode, résultat] avec résultat 0x01 = succès. */
+  async function setupControl(service) {
+    const res = { supported: false, min: 1, max: 16, inc: 1, level: null, reported: null, format: null };
+    let cp;
+    try { cp = await service.getCharacteristic(CONTROL_POINT); } catch (e) { return res; }
+    let pending = null;
+    cp.addEventListener('characteristicvaluechanged', ev => {
+      const v = ev.target.value;
+      if (v.getUint8(0) === 0x80 && pending && v.getUint8(1) === pending.op) { const p = pending; pending = null; p.resolve(v.getUint8(2)); }
+    });
+    try { await cp.startNotifications(); } catch (e) {}
+    const send = (bytes) => new Promise(async (resolve) => {
+      pending = { op: bytes[0], resolve };
+      const to = setTimeout(() => { if (pending && pending.op === bytes[0]) { pending = null; resolve(-1); } }, 1500);
+      try { await cp.writeValueWithResponse(new Uint8Array(bytes)); } catch (e) { clearTimeout(to); pending = null; resolve(-2); }
+    });
+    await send([0x00]); await send([0x07]);
+    // la console annonce-t-elle le réglage de résistance ? (Fitness Machine Feature, 2e mot, bit 2)
+    try {
+      const f = await (await service.getCharacteristic(FEATURE)).readValue();
+      if (f.byteLength >= 8) res.supported = !!(f.getUint32(4, true) & (1 << 2));
+    } catch (e) {}
+    try {
+      const r = await (await service.getCharacteristic(RES_RANGE)).readValue();
+      res.min = r.getInt16(0, true) / 10; res.max = r.getInt16(2, true) / 10; res.inc = Math.max(0.1, r.getUint16(4, true) / 10);
+      if (res.max <= res.min) { res.min = 1; res.max = 16; res.inc = 1; }
+      res.supported = true;
+    } catch (e) {}
+    let busy = false, queued = null;
+    res.set = async (level) => {
+      level = Math.max(res.min, Math.min(res.max, Math.round(level / res.inc) * res.inc));
+      if (level === res.level && !queued) return true;
+      if (busy) { queued = level; return true; }
+      busy = true;
+      const raw = Math.round(level * 10);
+      let ok = false;
+      // format sint16 (0,1) puis uint8 (0,1) puis niveau brut : les consoles ne lisent pas toutes la norme pareil
+      const formats = res.format ? [res.format] : ['s16', 'u8', 'raw'];
+      for (const fm of formats) {
+        const bytes = fm === 's16' ? [0x04, raw & 255, (raw >> 8) & 255] : fm === 'u8' ? [0x04, Math.min(255, raw)] : [0x04, Math.round(level) & 255];
+        const r = await send(bytes);
+        if (r === 1) { ok = true; res.format = fm; break; }
+        if (r === 5) { await send([0x00]); }   // contrôle perdu : on le redemande
+      }
+      if (ok) { res.level = level; res.supported = true; } else if (!res.format) res.supported = false;
+      busy = false;
+      if (queued != null) { const q = queued; queued = null; res.set(q); }
+      return ok;
+    };
+    return res;
+  }
+
   const Sources = {
+    resistance: null,
     current: null,
     aux: null,
     stopCurrent() { if (this.current && this.current.stop) this.current.stop(); this.current = null; if (this.aux) { this.aux.stop(); this.aux = null; } },
@@ -48,13 +105,9 @@
       const server = await device.gatt.connect();
       const service = await server.getPrimaryService(FTMS_SERVICE);
       const ch = await service.getCharacteristic(ROWER_DATA);
-      // Certaines consoles n'envoient rien tant qu'on n'a pas demandé le contrôle + démarrage.
-      try {
-        const cp = await service.getCharacteristic(CONTROL_POINT);
-        await cp.startNotifications().catch(() => {});
-        await cp.writeValueWithResponse(new Uint8Array([0x00]));
-        await cp.writeValueWithResponse(new Uint8Array([0x07]));
-      } catch (e) { /* facultatif */ }
+      // Point de contrôle FTMS : prise de contrôle + démarrage (certaines consoles n'envoient
+      // rien sans), puis réglage de la résistance par le jeu si la console l'accepte.
+      this.resistance = await setupControl(service);
 
       // Détection anticipée : la console incrémente son compteur de coups en fin de poussée
       // (et n'envoie qu'environ 1 trame/s). Une montée brutale de puissance signale l'attaque
@@ -69,6 +122,7 @@
         else if (d.power != null && d.power > 0) speed = Math.cbrt(d.power / 2.8);
         else if (d.power === 0 || d.pace === 0) speed = 0;
         R.setReal({ speed, spm: d.spm, power: d.power, heartRate: d.heartRate });
+        if (d.resistance != null && this.resistance) this.resistance.reported = d.resistance;
         const strength = d.power ? Math.max(0.5, Math.min(1.8, d.power / 110)) : 1;
         stats.frames++; if (d.strokeCount != null) stats.hasCount = true; if (d.power != null) stats.hasPower = true; if (d.spm) stats.spm = d.spm;
         // Si le micro (ou un autre capteur rapide) donne le rythme, la console ne sert qu'aux mesures.
@@ -98,6 +152,7 @@
       this.current = {
         kind: 'bluetooth',
         stop() {
+          Sources.resistance = null;
           ch.removeEventListener('characteristicvaluechanged', handler);
           device.removeEventListener('gattserverdisconnected', onDisc);
           try { device.gatt.disconnect(); } catch (e) {}

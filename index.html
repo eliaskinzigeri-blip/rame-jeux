@@ -86,6 +86,7 @@
     <h3 id="setup-title"></h3>
     <p id="setup-how"></p>
     <div id="setup-opts"></div>
+    <div class="opt"><label>Résistance pilotée par le jeu</label><div class="chips" id="resist-chips"><button class="chip" data-v="1">Oui</button><button class="chip" data-v="0">Non</button></div><p class="hint small-hint" id="resist-hint"></p></div>
     <div class="row">
       <button class="ghost" id="setup-cancel">Retour</button>
       <button class="primary" id="setup-go">Jouer</button>
@@ -120,9 +121,11 @@
           <div><b id="h-time">0:00</b><span>temps</span></div>
         </div>
         <div class="phase"><i id="h-phase"></i></div>
+        <div class="resist" id="h-resrow"><span>Résistance <em id="h-resmode"></em></span><div class="rbar"><i id="h-res"></i></div><b id="h-reslbl"></b></div>
       </div>
       <div class="hud-tr glass" id="h-panel"></div>
       <div class="hud-center" id="h-center"></div>
+      <div class="hud-event" id="h-event"></div>
       <div class="hud-bottom">
         <div class="bar glass"><i id="h-prog"></i><span id="h-progtxt"></span></div>
       </div>
@@ -157,6 +160,7 @@
 <script src="js/rower.js"></script>
 <script src="js/sources.js"></script>
 <script src="js/kit.js"></script>
+<script src="js/intensity.js"></script>
 <script src="js/games/course.js"></script>
 <script src="js/games/libre.js"></script>
 <script src="js/games/seance.js"></script>

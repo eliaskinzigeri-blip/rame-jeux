@@ -26,8 +26,8 @@
                 it.hit = true; it.hitAt = now; hits++; combo++;
                 const g = 100 * Math.min(5, combo); score += g; Sound.good();
                 msg = `+${g}` + (combo > 1 ? ` · série ×${Math.min(5, combo)}` : ''); cls = 'ok'; msgT = 1.4;
-                if (combo % 3 === 0) target *= 1.03;
-              } else { it.missed = true; combo = 0; Sound.bad(); msg = 'Trop lent !'; cls = 'low'; msgT = 1.2; target *= 0.985; }
+                if (combo % 3 === 0) { target *= 1.03; Intensity.nudge(0.06, 'Série de 3 ! Résistance ▲'); }
+              } else { it.missed = true; combo = 0; Sound.bad(); msg = 'Trop lent !'; cls = 'low'; msgT = 1.2; target *= 0.985; Intensity.nudge(-0.04); }
             }
           });
           while (items.length && items[0].x < me - 25) items.shift();

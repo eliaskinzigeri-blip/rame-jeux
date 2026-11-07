@@ -10,10 +10,17 @@
     create(opts) {
       const dur = (opts.dur || 10) * 60, gKey = 'ghost-libre-' + opts.dur;
       const ghost = Store.get(gKey, null), rec = Ghost.recorder();
-      let t = 0, me = 0, last = 0, msg = '', msgT = 0; const s0 = Rower.strokes;
+      let t = 0, me = 0, last = 0, msg = '', msgT = 0; const s0 = Rower.strokes; let windAt = 60 + Math.random() * 60, wind = 0, windUntil = 0;
       return {
         update(dt) {
           t += dt; me += Rower.speed * dt; rec.push(dt, me);
+          // météo : rafales de vent de face (plus dur) ou de vent arrière (plus facile)
+          if (t >= windAt) {
+            const head = Math.random() < 0.6, secs = 20 + Math.random() * 20;
+            wind = head ? 1 : -1; windUntil = t + secs; windAt = t + secs + 50 + Math.random() * 70;
+            if (head) Intensity.bump(0.25, secs, 'Vent de face ! Résistance ▲'); else Intensity.bump(-0.2, secs, 'Vent arrière : ça glisse ▼');
+          }
+          if (t > windUntil) wind = 0;
           const s = Math.floor(me / 500) * 500;
           if (s > last) { last = s; msg = `${s} m · allure ${pace(s / t)}`; msgT = 3; Sound.split(); }
           msgT -= dt;
@@ -28,7 +35,7 @@
           const boats = [];
           if (ghost) boats.push({ id: 'ghost', d: Ghost.at(ghost, t), lane: 0, phase: botPhase(t, 24, 0.3), ghost: true, label: 'Ton record', hull: 0xffffff, suit: 0xffffff, accent: 0xffffff });
           boats.push(meBoat(me));
-          return { boats, laneMin: 0, laneCount: 1 };
+          return { boats, laneMin: 0, laneCount: 1, wind };
         },
         hud() {
           const gd = ghost ? Ghost.at(ghost, t) : null;

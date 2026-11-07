@@ -158,9 +158,18 @@
       });
       box.appendChild(d);
     });
+    const ra = store.get('resist-auto', true);
+    document.querySelectorAll('#resist-chips .chip').forEach(c => c.classList.toggle('on', (c.dataset.v === '1') === ra));
+    $('resist-hint').textContent = Intensity.real
+      ? 'Ta console accepte le réglage : le jeu change la vraie résistance (kraken qui agrippe, vent, coach…).'
+      : (Sources.resistance ? "Ta console n'accepte pas le réglage à distance : la difficulté est simulée dans le jeu." : 'Sans console Bluetooth, la difficulté est simulée dans le jeu (bateau plus lourd).');
     $('setup').hidden = false;
     $('setup-go').focus();
   }
+  document.querySelectorAll('#resist-chips .chip').forEach(c => c.addEventListener('click', () => {
+    store.set('resist-auto', c.dataset.v === '1');
+    document.querySelectorAll('#resist-chips .chip').forEach(x => x.classList.toggle('on', x === c));
+  }));
   $('setup-cancel').onclick = () => { $('setup').hidden = true; };
   $('setup-go').onclick = () => { $('setup').hidden = true; store.set('opts-' + current.id, currentOpts); start(); };
 
@@ -190,6 +199,8 @@
     World.reset();
     resize();
     R.resetSession();
+    Intensity.enabled = store.get('resist-auto', true);
+    Intensity.start(0.35);
     game = current.create(currentOpts);
     window.__rjPlaying = true;
     counting = 3.999; playT = 0; prevCount = 4;
@@ -214,6 +225,13 @@
     $('h-prog').style.width = Math.round(Math.min(1, Math.max(0, h.progress || 0)) * 1000) / 10 + '%';
     $('h-prog').classList.toggle('danger', !!h.danger);
     $('h-progtxt').textContent = h.progressText || '';
+    $('h-resrow').hidden = !Intensity.enabled;
+    $('h-res').style.width = Math.round(Intensity.level * 100) + '%';
+    $('h-reslbl').textContent = Intensity.label();
+    $('h-resmode').textContent = Intensity.real ? '' : '(simulée)';
+    const ev = Intensity.lastEvent(), he = $('h-event');
+    if (ev) { if (he.dataset.at != ev.at) { he.dataset.at = ev.at; he.textContent = ev.text; he.className = 'hud-event show ' + (ev.up ? 'up' : 'down'); } }
+    else he.className = 'hud-event';
   }
   function loop(now) {
     const dt = Math.min(0.5, (now - last) / 1000); last = now;
@@ -224,7 +242,7 @@
       if (c !== prevCount) { prevCount = c; if (c > 0) Kit.Sound.beep(c === 1 ? 880 : 520, 0.12, 'triangle'); else Kit.Sound.beep(1200, 0.25, 'triangle'); }
       $('count').textContent = counting > 0 ? c : '';
       if (counting <= 0) { counting = 0; R.resetSession(); }
-    } else { game.update(dt); playT += dt; }
+    } else { game.update(dt); playT += dt; Intensity.tick(); }
     World.render(game.state(), dt);
     ctx.clearRect(0, 0, W, H);
     if (game.overlay) game.overlay(ctx, W, H);
@@ -233,6 +251,7 @@
     raf = requestAnimationFrame(loop);
   }
   function finish() {
+    Intensity.stop();
     const g = current, res = game.result, key = recKey(g, currentOpts);
     const prev = store.get(key, null);
     const better = prev == null || (g.lowerIsBetter ? res.score < prev : res.score > prev);
@@ -248,6 +267,7 @@
     Cloud.flush();
   }
   function home() {
+    Intensity.stop();
     cancelAnimationFrame(raf); game = null; counting = 0; window.__rjPlaying = false; $('count').textContent = '';
     $('play').hidden = true; $('result').hidden = true; $('home').hidden = false;
     if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }

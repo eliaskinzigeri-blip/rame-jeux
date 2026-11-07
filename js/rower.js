@@ -22,6 +22,7 @@
     off(ev, fn) { this._listeners[ev] = (this._listeners[ev] || []).filter(f => f !== fn); },
     emit(ev, data) { (this._listeners[ev] || []).forEach(fn => fn(data)); },
     predict: true,
+    speedMul: 1,          // résistance simulée par le jeu (1 = normal)
     resetSession() { this.distance = 0; },
 
     /* Un coup de rame a été détecté. strength ≈ 1 pour un coup normal.
@@ -92,7 +93,7 @@
       if (this._model > 7) this._model = 7;
       this._modelAvg += (this._model - this._modelAvg) * Math.min(1, dt / 4);
       // lissage très court (≈ 80 ms) : réactif mais sans à-coups visuels
-      this.speed += (this._model - this.speed) * Math.min(1, dt * 12);
+      this.speed += (this._model * this.speedMul - this.speed) * Math.min(1, dt * 12);
       if (this.speed < 0.02) this.speed = 0;
       this.distance += this.speed * dt;
       const idle = performance.now() - this._lastReal;
