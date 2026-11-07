@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b2233">
+<title>Rame &amp; Jeux</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="logo" aria-hidden="true"></span>Rame &amp; Jeux</div>
+  <div class="live" id="live">
+    <span><b id="l-speed">0.0</b> m/s</span>
+    <span><b id="l-pace">–:––</b> /500m</span>
+    <span><b id="l-spm">0</b> cpm</span>
+    <span class="src" id="l-src">aucune source</span>
+  </div>
+  <div class="who" id="who" hidden>
+    <span class="avatar" aria-hidden="true"></span><b id="who-name"></b>
+    <span class="sync on" id="sync">synchronisé</span>
+    <button class="ghost small" id="logout">Changer de compte</button>
+  </div>
+</header>
+
+<main id="auth" hidden>
+  <form class="card auth-card" id="auth-form" novalidate>
+    <h2 id="auth-title">Crée ton compte</h2>
+    <p id="auth-sub" class="hint"></p>
+    <div class="field" id="f-pseudo-row"><label for="f-pseudo">Pseudo</label><input id="f-pseudo" autocomplete="nickname" maxlength="24" placeholder="ex. Elias"></div>
+    <div class="field"><label for="f-email">E-mail</label><input id="f-email" type="email" autocomplete="email" required></div>
+    <div class="field"><label for="f-pass">Mot de passe</label><input id="f-pass" type="password" autocomplete="current-password" minlength="6" required placeholder="6 caractères minimum"></div>
+    <p class="status" id="auth-msg" role="status"></p>
+    <button class="primary wide" id="auth-go" type="submit">Créer mon compte</button>
+    <div class="row between">
+      <button type="button" class="link" id="auth-switch">J'ai déjà un compte</button>
+      <button type="button" class="link" id="auth-reset" hidden>Mot de passe oublié</button>
+    </div>
+  </form>
+</main>
+
+<main id="home" hidden>
+  <p class="profile" id="profile"></p>
+  <section class="connect">
+    <h2>1. Relie ton rameur</h2>
+    <p class="hint">Choisis comment l'app détecte tes coups de rame.</p>
+    <div class="src-grid">
+      <button class="src-btn" data-src="bluetooth"><strong>Bluetooth (FTMS)</strong><span>Console connectée : vitesse, cadence et puissance réelles. Chrome/Edge sur PC ou Android.</span></button>
+      <button class="src-btn" data-src="motion"><strong>Téléphone sur le siège</strong><span>L'accéléromètre détecte chaque aller-retour du chariot. Marche sur tout rameur.</span></button>
+      <button class="src-btn" data-src="manual"><strong>Manuel</strong><span>Espace ou tap à chaque coup (maintenir = coup plus fort). Pour tester.</span></button>
+      <button class="src-btn" data-src="sim"><strong>Simulation</strong><span>Un rameur virtuel rame à ta place. <label>cadence <input type="range" id="sim-spm" min="16" max="36" value="24"> <output id="sim-out">24</output></label></span></button>
+    </div>
+    <p class="status" id="status" role="status"></p>
+    <div class="meter" id="stroke-meter" aria-hidden="true"><i></i></div>
+  </section>
+
+  <section>
+    <h2>2. Choisis un jeu</h2>
+    <div class="games" id="games"></div>
+  </section>
+
+  <footer class="foot">
+    <p>Tes records, fantômes et réglages sont liés à ton compte et synchronisés entre tes appareils. Données Bluetooth : profil standard FTMS « Rower Data ». Si ta console n'est pas détectée en Bluetooth, utilise le mode téléphone.</p>
+  </footer>
+</main>
+
+<div id="setup" class="modal" hidden>
+  <div class="card">
+    <h3 id="setup-title"></h3>
+    <p id="setup-how"></p>
+    <div id="setup-opts"></div>
+    <div class="row">
+      <button class="ghost" id="setup-cancel">Retour</button>
+      <button class="primary" id="setup-go">Jouer</button>
+    </div>
+  </div>
+</div>
+
+<section id="play" hidden>
+  <div id="stage"><canvas id="cv"></canvas><div id="count" class="count"></div></div>
+  <div class="playbar">
+    <button class="ghost" id="quit">Quitter</button>
+    <span id="p-info"></span>
+    <button class="ghost" id="mute">Son : oui</button>
+  </div>
+</section>
+
+<div id="result" class="modal" hidden>
+  <div class="card">
+    <p class="eyebrow" id="r-game"></p>
+    <h3 id="r-score"></h3>
+    <p id="r-detail"></p>
+    <p id="r-record" class="record"></p>
+    <div class="row">
+      <button class="ghost" id="r-home">Menu</button>
+      <button class="primary" id="r-again">Rejouer</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/vendor/supabase.js"></script>
+<script src="js/cloud.js"></script>
+<script src="js/rower.js"></script>
+<script src="js/sources.js"></script>
+<script src="js/kit.js"></script>
+<script src="js/games/regate.js"></script>
+<script src="js/games/envol.js"></script>
+<script src="js/games/cadence.js"></script>
+<script src="js/games/corde.js"></script>
+<script src="js/games/kraken.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

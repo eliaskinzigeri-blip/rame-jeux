@@ -1,0 +1,11 @@
+{
+  "name": "Rame & Jeux",
+  "short_name": "Rame&Jeux",
+  "lang": "fr",
+  "start_url": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#0b2233",
+  "theme_color": "#0b2233",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}
