@@ -26,10 +26,14 @@ L'app reprend ce que proposent les apps de rameur connecté comme EXR (balade, s
 - **Cadence** : jeu de rythme, chaque attaque doit tomber sur le temps.
 
 ## Latence
-- La vitesse vient d'un modèle physique qui réagit dès le coup de rame. Les mesures de la console (≈ 1/s) ne servent qu'à le recalibrer.
-- En Bluetooth, une montée brutale de puissance déclenche le coup sans attendre l'incrément du compteur.
-- L'accéléromètre déclenche le coup dès le franchissement du seuil, et le mode manuel dès l'appui.
-- L'animation du rameur suit une phase prédite à partir de la cadence.
+Une console Bluetooth signale chaque coup 0,5 à 1 s après l'attaque réelle (≈ 1 trame/s, compteur incrémenté en fin de poussée).
+L'app corrige ce retard de trois façons :
+1. **Compensation calibrée** : bouton « Calibrer (30 s) ». Tu attaques sur 12 bips et l'app mesure le retard de ta source, enregistré par source et par compte.
+   L'instant du coup est reculé d'autant, ce qui sert à l'animation et au jugement du jeu Cadence.
+2. **Prédiction** : quand tu rames régulièrement, le coup suivant est joué à l'instant prévu (poussée du bateau et animation), sans attendre le capteur.
+   Le vrai coup recale seulement la phase. Si tu t'arrêtes, un seul coup anticipé est joué.
+3. **Modèle physique** : la vitesse réagit au coup, et les mesures de la console ne font que recalibrer ce modèle.
+Côté graphismes, trois niveaux de qualité (haute, moyenne, éco). La qualité baisse automatiquement si l'image tombe sous 45 images/s, pour éviter le retard d'affichage.
 
 ## Comptes et synchronisation
 À la première ouverture, chaque joueur crée un compte (pseudo, e-mail, mot de passe).

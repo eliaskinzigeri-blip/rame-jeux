@@ -10,7 +10,7 @@
     create(opts) {
       const dur = (opts.dur || 10) * 60, gKey = 'ghost-libre-' + opts.dur;
       const ghost = Store.get(gKey, null), rec = Ghost.recorder();
-      let t = 0, me = 0, last = 0, msg = '', msgT = 0;
+      let t = 0, me = 0, last = 0, msg = '', msgT = 0; const s0 = Rower.strokes;
       return {
         update(dt) {
           t += dt; me += Rower.speed * dt; rec.push(dt, me);
@@ -21,7 +21,7 @@
             const best = Store.get('rec-libre-' + opts.dur, 0);
             if (me > best) Store.set(gKey, rec.trace);
             this.over = true;
-            this.result = { score: Math.round(me), display: Math.round(me) + ' m', detail: `${opts.dur} min · allure moyenne ${pace(me / t)} /500 m · ${Rower.strokes} coups` };
+            this.result = { score: Math.round(me), display: Math.round(me) + ' m', detail: `${opts.dur} min · allure moyenne ${pace(me / t)} /500 m · ${Rower.strokes - s0} coups` };
           }
         },
         state() {

@@ -161,3 +161,13 @@ h2 { font-size: 18px; margin: 22px 0 6px; }
   background: radial-gradient(120px 30px at 30% 100%, #fff, transparent 70%), radial-gradient(160px 40px at 75% 100%, #fff, transparent 70%); filter: blur(6px); }
 .game h3, .game p, .game .rec { position: relative; z-index: 1; }
 .game h3 { margin-top: 48px; }
+
+.latency { display: grid; grid-template-columns: 1fr auto auto; gap: 10px 14px; align-items: center; margin-top: 12px; padding: 12px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; }
+.latency[hidden], .modal[hidden] { display: none; }
+.lat-info { display: flex; flex-direction: column; gap: 2px; }
+.lat-info span { color: var(--muted); font-size: 13px; }
+#lat-range { width: 180px; }
+@media (max-width: 640px) { .latency { grid-template-columns: 1fr; } #lat-range { width: 100%; } }
+.calib-ring { width: 140px; height: 140px; margin: 10px auto; border-radius: 50%; border: 4px solid var(--accent); display: grid; place-items: center; font-size: 22px; }
+.calib-ring.pulse { animation: pulse .5s ease-out; }
+@keyframes pulse { 0% { transform: scale(1.18); background: rgba(255,181,71,.35); } 100% { transform: scale(1); background: transparent; } }

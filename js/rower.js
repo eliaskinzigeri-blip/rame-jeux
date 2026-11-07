@@ -21,25 +21,41 @@
     on(ev, fn) { (this._listeners[ev] = this._listeners[ev] || []).push(fn); },
     off(ev, fn) { this._listeners[ev] = (this._listeners[ev] || []).filter(f => f !== fn); },
     emit(ev, data) { (this._listeners[ev] || []).forEach(fn => fn(data)); },
-    resetSession() { this.distance = 0; this.strokes = 0; },
+    predict: true,
+    resetSession() { this.distance = 0; },
 
-    /* Un coup de rame vient de commencer (attaque). strength ≈ 1 pour un coup normal. */
+    /* Un coup de rame a été détecté. strength ≈ 1 pour un coup normal.
+       Le capteur signale toujours le coup EN RETARD (console Bluetooth : 0,5 à 1 s) :
+       `latency` (ms, calibrable) recule l'instant réel de l'attaque d'autant. */
+    latency: 0,
+    _lastReal: 0, _predictedAt: 0, _lastStrength: 1, _consoleSpm: 0, _consoleSpmAt: 0,
     stroke(strength) {
       const now = performance.now();
+      const catchAt = now - this.latency;
       const s = Math.max(0.3, Math.min(2, strength || 1));
-      if (this.lastStrokeAt) {
-        const dt = (now - this.lastStrokeAt) / 1000;
+      if (this._lastReal) {
+        const dt = (catchAt - this._lastReal) / 1000;
         if (dt < 0.75) return;                       // anti-rebond (> 80 cpm impossible)
         if (dt < 6) {
-          this.period = this.period * 0.55 + dt * 0.45;
-          const inst = 60 / dt;
-          this.spm = this.spm ? this.spm * 0.5 + inst * 0.5 : inst;
+          this.period = this.period * 0.6 + dt * 0.4;
+          // la cadence donnée par la console est plus régulière que nos intervalles (trames ~1/s)
+          if (now - this._consoleSpmAt < 3000 && this._consoleSpm > 10) this.period = this.period * 0.5 + (60 / this._consoleSpm) * 0.5;
+          this.spm = 60 / this.period;
         }
       }
-      this.lastStrokeAt = now;
+      this._lastReal = catchAt;
+      this._lastStrength = s;
       this.strokes++;
-      this._model += KICK * s * this.gain;
-      this.emit('stroke', { strength: s, time: now });
+      const predicted = this._predictedAt && Math.abs(catchAt - this._predictedAt) < this.period * 500;
+      if (predicted) {
+        // le coup avait déjà été anticipé : on corrige seulement la phase, sans 2e impulsion
+        this.lastStrokeAt = catchAt;
+      } else {
+        this.lastStrokeAt = catchAt;
+        this._model += KICK * s * this.gain;
+      }
+      this._predictedAt = 0;
+      this.emit('stroke', { strength: s, time: catchAt, lag: (now - catchAt) / 1000 });
     },
 
     /* Mesures réelles de la console : elles recalibrent le modèle. */
@@ -54,12 +70,24 @@
         // la console dit qu'on glisse alors qu'on n'a vu aucun coup : on fait confiance à la console
         if (now - this.lastStrokeAt > 4000) this._model = speed;
       }
-      if (spm != null && spm > 0 && now - this.lastStrokeAt > 4000) this.spm = spm;
+      if (spm != null && spm > 0) { this._consoleSpm = spm; this._consoleSpmAt = now; if (now - this.lastStrokeAt > 4000) this.spm = spm; }
       if (power != null) this.power = power;
       if (heartRate) this.heartRate = heartRate;
     },
 
     tick(dt) {
+      // Prédiction : quand on rame régulièrement, le coup suivant est joué à l'instant prévu
+      // (impulsion + animation) sans attendre le capteur. Le vrai coup ne fait que recaler la phase.
+      // Une seule anticipation d'avance : si tu t'arrêtes, le bateau ralentit au coup suivant.
+      const nowT = performance.now();
+      if (this.predict && this.strokes >= 3 && this.spm > 12 && !this._predictedAt && this._lastReal) {
+        const expected = this._lastReal + this.period * 1000;
+        if (nowT >= expected && nowT - expected < this.period * 400) {
+          this._predictedAt = expected; this.lastStrokeAt = expected;
+          this._model += KICK * this._lastStrength * this.gain;
+        }
+      }
+      if (this._predictedAt && nowT - this._predictedAt > this.period * 1000 * 1.2) this._predictedAt = 0;
       this._model *= Math.exp(-DRAG * dt);
       if (this._model > 7) this._model = 7;
       this._modelAvg += (this._model - this._modelAvg) * Math.min(1, dt / 4);
@@ -67,7 +95,7 @@
       this.speed += (this._model - this.speed) * Math.min(1, dt * 12);
       if (this.speed < 0.02) this.speed = 0;
       this.distance += this.speed * dt;
-      const idle = performance.now() - this.lastStrokeAt;
+      const idle = performance.now() - this._lastReal;
       if (idle > 6000) { this.spm *= Math.exp(-dt); if (this.spm < 1) this.spm = 0; }
     },
 

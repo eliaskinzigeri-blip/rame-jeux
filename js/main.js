@@ -19,6 +19,7 @@
       if (kind === 'sim') { Sources.simulate(simSpm); status('Simulation active.'); }
       document.querySelectorAll('.src-btn').forEach(b => b.classList.toggle('active', b === btn));
       store.set('src', kind);
+      setLatencySource(kind);
     } catch (e) {
       if (e && e.name === 'NotFoundError') status('Aucun rameur choisi.');
       else status(e.message || String(e));
@@ -29,13 +30,66 @@
     b.textContent = "Indisponible dans ce navigateur (il faut Chrome ou Edge sur PC/Android ; Bluefy sur iPhone).";
   }
 
+  /* ---------- Latence ---------- */
+  // Retard typique entre l'attaque réelle et l'arrivée du coup dans l'app, par source.
+  const LAT_DEFAULT = { bluetooth: 650, motion: 120, manual: 40, sim: 0 };
+  let latKind = null;
+  function setLatencySource(kind) {
+    latKind = kind;
+    R.latency = store.get('lat-' + kind, LAT_DEFAULT[kind] || 0);
+    $('latency-row').hidden = kind === 'sim';
+    $('lat-range').value = R.latency; $('lat-val').textContent = R.latency;
+  }
+  $('lat-range').addEventListener('input', e => { R.latency = +e.target.value; $('lat-val').textContent = R.latency; });
+  $('lat-range').addEventListener('change', () => { if (latKind) store.set('lat-' + latKind, R.latency); });
+
+  let calib = null;
+  $('lat-calib').onclick = () => { $('calib').hidden = false; $('calib-n').textContent = 'Prêt ?'; $('calib-msg').textContent = ''; $('calib-go').disabled = false; };
+  $('calib-cancel').onclick = () => { if (calib) { clearInterval(calib.timer); calib = null; } $('calib').hidden = true; };
+  $('calib-go').onclick = () => {
+    Kit.Sound.ctx();
+    $('calib-go').disabled = true;
+    const period = 3000, beats = [], arrivals = [];
+    let i = 0;
+    calib = { arrivals };
+    const beat = () => {
+      if (i >= 14) {
+        clearInterval(calib.timer);
+        // on associe chaque coup reçu au bip le plus proche avant lui
+        const delays = [];
+        arrivals.forEach(a => {
+          const b = beats.filter(x => x <= a + 300).pop();
+          if (b != null && a - b > -300 && a - b < 2000) delays.push(a - b);
+        });
+        calib = null;
+        if (delays.length < 6) { $('calib-msg').textContent = `Seulement ${delays.length} coups détectés : vérifie la source et recommence.`; $('calib-go').disabled = false; return; }
+        delays.sort((x, y) => x - y);
+        const med = Math.max(0, Math.min(1500, Math.round(delays[Math.floor(delays.length / 2)] / 10) * 10));
+        R.latency = med; if (latKind) store.set('lat-' + latKind, med);
+        $('lat-range').value = med; $('lat-val').textContent = med;
+        $('calib-n').textContent = med + ' ms';
+        $('calib-msg').textContent = `Latence mesurée : ${med} ms (sur ${delays.length} coups). C'est enregistré pour cette source.`;
+        setTimeout(() => { $('calib').hidden = true; }, 2600);
+        return;
+      }
+      const now = performance.now();
+      if (i >= 2) beats.push(now);   // les 2 premiers bips servent à prendre le rythme
+      Kit.Sound.beep(i >= 2 ? 1046 : 660, 0.12, 'triangle', 0.2);
+      $('calib-n').textContent = i < 2 ? 'Rythme…' : (i - 1) + ' / 12';
+      const ring = $('calib-ring'); ring.classList.remove('pulse'); void ring.offsetWidth; ring.classList.add('pulse');
+      i++;
+    };
+    calib.timer = setInterval(beat, period); beat();
+  };
+
   // Jauge de coup
   let meterT;
-  R.on('stroke', ({ strength }) => {
+  R.on('stroke', ({ strength, lag }) => {
     const m = $('stroke-meter').firstElementChild;
     m.style.transition = 'none'; m.style.width = Math.min(100, strength * 60) + '%';
     clearTimeout(meterT); meterT = setTimeout(() => { m.style.transition = ''; m.style.width = '0'; }, 60);
-    if (game && !counting) game.onStroke(strength);
+    if (game && !counting) game.onStroke(strength, lag || 0);
+    if (calib) calib.arrivals.push(performance.now());
   });
 
   /* ---------- Liste des jeux ---------- */
@@ -110,6 +164,8 @@
     await whenWorld();
     try { World.init($('gl')); } catch (e) { $('loading').hidden = false; $('loading').textContent = "La 3D (WebGL) n'est pas disponible sur cet appareil."; return; }
     $('loading').hidden = true;
+    World.onQuality = q => { $('qual').textContent = 'Qualité : ' + QN[q]; };
+    World.onQuality(World.quality);
     World.reset();
     resize();
     R.resetSession();
@@ -177,6 +233,8 @@
     renderGames(); renderProfile();
   }
   $('quit').onclick = home;
+  const QN = ['éco', 'moyenne', 'haute'];
+  $('qual').onclick = () => { if (window.World && World.ready) World.setQuality((World.quality + 2) % 3); };
   $('cam').onclick = () => { if (window.World && World.ready) $('cam').textContent = World.cycleCamera(); };
   $('r-home').onclick = home;
   $('r-again').onclick = start;

@@ -228,6 +228,9 @@ const World = {
     });
     water.material.uniforms.size.value = 1.1;
     water.rotation.x = -Math.PI / 2; scene.add(water);
+    // eau économique (sans rendu de reflet supplémentaire) pour les appareils lents
+    const cheapWater = new THREE.Mesh(new THREE.PlaneGeometry(5000, 1400), new THREE.MeshStandardMaterial({ color: 0x14495a, roughness: 0.12, metalness: 0.85, envMapIntensity: 1.1 }));
+    cheapWater.rotation.x = -Math.PI / 2; cheapWater.visible = false; scene.add(cheapWater);
 
     // montagnes lointaines (suivent la caméra en x)
     const far = new THREE.Group(); scene.add(far);
@@ -342,10 +345,27 @@ const World = {
 
     const kraken = makeKraken(); kraken.visible = false; scene.add(kraken);
 
-    Object.assign(this, { renderer, scene, camera, water, far, buoys, signs, finish, targets, rings, kraken, dir, boats: new Map(), camPos: new THREE.Vector3(-8, 2.5, 9), camLook: new THREE.Vector3() });
+    Object.assign(this, { cheapWater, renderer, scene, camera, water, far, buoys, signs, finish, targets, rings, kraken, dir, boats: new Map(), camPos: new THREE.Vector3(-8, 2.5, 9), camLook: new THREE.Vector3() });
     this.ready = true;
+    // qualité : 2 = haute, 1 = moyenne, 0 = économique. Départ moyen sur mobile, puis ajustement auto.
+    const mobile = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
+    this._ft = 1 / 60; this._qT = 0;
+    this.setQuality(+(localStorage.getItem('rj-quality') ?? (mobile ? 1 : 2)));
     this.resize();
     window.addEventListener('resize', () => this.resize());
+  },
+
+  setQuality(q) {
+    q = Math.max(0, Math.min(2, q | 0)); this.quality = q;
+    const dpr = window.devicePixelRatio || 1;
+    this.renderer.setPixelRatio([Math.min(0.85, dpr), Math.min(1.25, dpr), Math.min(1.75, dpr)][q]);
+    this.renderer.shadowMap.enabled = q === 2;
+    this.dir.castShadow = q === 2;
+    this.water.visible = q > 0; this.cheapWater.visible = q === 0;
+    this.scene.traverse(o => { if (o.material) o.material.needsUpdate = true; });
+    try { localStorage.setItem('rj-quality', q); } catch (e) {}
+    this.resize();
+    if (this.onQuality) this.onQuality(q);
   },
 
   resize() {
@@ -444,11 +464,14 @@ const World = {
       modes[0][0].set(mx + 10, 2.8 + gap * 0.05, mz + 9 + gap * 0.2); modes[0][1].set(mx - gap * 0.42, 1.2, mz);
     }
     const [cp, cl] = modes[this.camMode];
-    const k = 1 - Math.exp(-dt * 3.5);
+    const k = 1 - Math.exp(-dt * 6);
     this.camPos.lerp(cp, k); this.camLook.lerp(cl, k);
     this.camera.position.copy(this.camPos); this.camera.lookAt(this.camLook);
 
-    this.water.position.x = mx; this.water.material.uniforms.time.value = t * 0.6;
+    this.water.position.x = mx; this.water.material.uniforms.time.value = t * 0.6; this.cheapWater.position.x = mx;
+    // Ajustement automatique : si l'image tombe sous ~45 i/s pendant 2 s, on baisse la qualité.
+    this._ft += (dt - this._ft) * 0.05; this._qT += dt;
+    if (this._qT > 2 && this._ft > 1 / 45 && this.quality > 0) { this._qT = 0; this.setQuality(this.quality - 1); }
     this.far.position.x = mx;
     this.dir.position.set(mx + 30, 70, 40); this.dir.target.position.set(mx, 0, mz);
     this._syncChunks(mx);

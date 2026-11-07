@@ -68,7 +68,7 @@
         else if (d.power === 0 || d.pace === 0) speed = 0;
         R.setReal({ speed, spm: d.spm, power: d.power, heartRate: d.heartRate });
         const strength = d.power ? Math.max(0.5, Math.min(1.8, d.power / 110)) : 1;
-        if (d.power != null && d.power > 40 && d.power > prevPower * 1.5 + 15 && now - R.lastStrokeAt > 900) {
+        if (d.power != null && d.power > 40 && d.power > prevPower * 1.5 + 15 && now - R._lastReal > 900) {
           earlyAt = now; R.stroke(strength);
         }
         if (d.power != null) prevPower = d.power;

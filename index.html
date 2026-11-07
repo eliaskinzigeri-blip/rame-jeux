@@ -54,6 +54,14 @@
     </div>
     <p class="status" id="status" role="status"></p>
     <div class="meter" id="stroke-meter" aria-hidden="true"><i></i></div>
+    <div class="latency" id="latency-row" hidden>
+      <div class="lat-info">
+        <strong>Compensation de latence : <span id="lat-val">0</span> ms</strong>
+        <span>Le capteur signale chaque coup avec du retard. L'app recule l'instant du coup d'autant et anticipe les coups suivants.</span>
+      </div>
+      <input type="range" id="lat-range" min="0" max="1500" step="10" value="0" aria-label="Compensation de latence en millisecondes">
+      <button class="ghost small" id="lat-calib" type="button">Calibrer (30 s)</button>
+    </div>
   </section>
 
   <section>
@@ -74,6 +82,19 @@
     <div class="row">
       <button class="ghost" id="setup-cancel">Retour</button>
       <button class="primary" id="setup-go">Jouer</button>
+    </div>
+  </div>
+</div>
+
+<div id="calib" class="modal" hidden>
+  <div class="card calib-card">
+    <h3>Calibrer la latence</h3>
+    <p>Installe-toi sur le rameur. À chaque <b>bip</b>, attaque ton coup (début de la poussée des jambes). 12 coups, environ 36 secondes.</p>
+    <div class="calib-ring" id="calib-ring"><b id="calib-n">Prêt ?</b></div>
+    <p id="calib-msg" class="status"></p>
+    <div class="row">
+      <button class="ghost" id="calib-cancel" type="button">Annuler</button>
+      <button class="primary" id="calib-go" type="button">Commencer</button>
     </div>
   </div>
 </div>
@@ -105,6 +126,7 @@
   <div class="playbar">
     <button class="ghost" id="quit">Quitter</button>
     <button class="ghost" id="cam">Caméra : côté</button>
+    <button class="ghost" id="qual">Qualité : auto</button>
     <button class="ghost" id="mute">Son : oui</button>
   </div>
 </section>

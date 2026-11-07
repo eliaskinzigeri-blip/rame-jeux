@@ -28,15 +28,16 @@
             this.result = { score, display: score + ' pts', detail: `Précision ${acc} % · ${counts.Parfait} parfaits · meilleure série ${maxCombo}` };
           }
         },
-        onStroke() {
+        onStroke(strength, lag) {
+          const at = t - (lag || 0);   // instant réel de l'attaque (latence du capteur compensée)
           let best = null, bd = Infinity;
-          notes.forEach(n => { if (n.hit == null) { const d = Math.abs(t - n.at); if (d < bd) { bd = d; best = n; } } });
+          notes.forEach(n => { if (n.hit == null) { const d = Math.abs(at - n.at); if (d < bd) { bd = d; best = n; } } });
           if (!best || bd > period * 0.5) return;
           const j = bd < 0.12 ? 'Parfait' : bd < 0.28 ? 'Bien' : 'Décalé';
           best.hit = j; counts[j]++; judged++;
           if (j === 'Décalé') { combo = 0; Sound.bad(); }
           else { combo++; maxCombo = Math.max(maxCombo, combo); score += (j === 'Parfait' ? 100 : 50) * (1 + Math.floor(combo / 5)); }
-          fb = { s: j === 'Parfait' ? 'Parfait' : j + (t < best.at ? ' · tôt' : ' · tard'), c: j === 'Parfait' ? 'ok' : j === 'Bien' ? 'mid' : 'low', t: 0 };
+          fb = { s: j === 'Parfait' ? 'Parfait' : j + (at < best.at ? ' · tôt' : ' · tard'), c: j === 'Parfait' ? 'ok' : j === 'Bien' ? 'mid' : 'low', t: 0 };
         },
         state() { return { boats: [meBoat(me)], laneMin: 0, laneCount: 1 }; },
         hud() {
