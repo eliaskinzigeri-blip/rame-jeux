@@ -55,24 +55,31 @@
         await cp.writeValueWithResponse(new Uint8Array([0x07]));
       } catch (e) { /* facultatif */ }
 
-      let lastCount = null, lastPowerStroke = 0;
+      // Détection anticipée : la console incrémente son compteur de coups en fin de poussée
+      // (et n'envoie qu'environ 1 trame/s). Une montée brutale de puissance signale l'attaque
+      // plus tôt : on déclenche le coup tout de suite et on ignore l'incrément qui suit.
+      let lastCount = null, prevPower = 0, earlyAt = 0;
       const handler = (ev) => {
         const d = parseRowerData(ev.target.value);
+        const now = performance.now();
         let speed = null;
         if (d.pace && d.pace > 60 && d.pace < 1200) speed = 500 / d.pace;
         else if (d.power != null && d.power > 0) speed = Math.cbrt(d.power / 2.8);
         else if (d.power === 0 || d.pace === 0) speed = 0;
         R.setReal({ speed, spm: d.spm, power: d.power, heartRate: d.heartRate });
+        const strength = d.power ? Math.max(0.5, Math.min(1.8, d.power / 110)) : 1;
+        if (d.power != null && d.power > 40 && d.power > prevPower * 1.5 + 15 && now - R.lastStrokeAt > 900) {
+          earlyAt = now; R.stroke(strength);
+        }
+        if (d.power != null) prevPower = d.power;
         if (d.strokeCount != null) {
           if (lastCount != null && d.strokeCount > lastCount) {
             const n = Math.min(3, d.strokeCount - lastCount);
-            const strength = d.power ? d.power / 110 : 1;
-            for (let i = 0; i < n; i++) R.stroke(strength);
+            const skip = now - earlyAt < 1600 ? 1 : 0;
+            for (let i = skip; i < n; i++) R.stroke(strength);
+            earlyAt = 0;
           }
           lastCount = d.strokeCount;
-        } else if (d.power != null) {
-          // Pas de compteur : on déduit un coup à chaque pic de puissance.
-          if (d.power > 40 && performance.now() - lastPowerStroke > 1200) { lastPowerStroke = performance.now(); R.stroke(d.power / 110); }
         }
       };
       ch.addEventListener('characteristicvaluechanged', handler);
@@ -97,6 +104,8 @@
         if (p !== 'granted') throw new Error("Accès aux capteurs de mouvement refusé.");
       }
       this.stopCurrent();
+      // On déclenche dès que l'accélération franchit le seuil (début de poussée),
+      // pas à la fin du pic : ~200-400 ms gagnées.
       let filt = 0, peak = 0, armed = true, lastAt = 0, avgPeak = 3;
       const handler = (e) => {
         const a = e.acceleration && e.acceleration.x != null ? e.acceleration : null;
@@ -106,20 +115,15 @@
           const g = e.accelerationIncludingGravity || {};
           mag = Math.abs(Math.hypot(g.x || 0, g.y || 0, g.z || 0) - 9.81);
         }
-        filt = filt * 0.75 + mag * 0.25;
+        filt = filt * 0.5 + mag * 0.5;
         const now = performance.now();
-        const thr = Math.max(1.2, avgPeak * 0.45);
-        if (armed && filt > thr) { armed = false; peak = filt; }
-        else if (!armed) {
+        const thr = Math.max(1.0, avgPeak * 0.4);
+        if (armed && filt > thr && now - lastAt > 900) {
+          armed = false; peak = filt; lastAt = now;
+          R.stroke(1);
+        } else if (!armed) {
           peak = Math.max(peak, filt);
-          if (filt < thr * 0.5) {
-            armed = true;
-            if (now - lastAt > 900) {
-              lastAt = now;
-              avgPeak = avgPeak * 0.8 + peak * 0.2;
-              R.stroke(peak / avgPeak);
-            }
-          }
+          if (filt < thr * 0.5) { armed = true; avgPeak = avgPeak * 0.8 + peak * 0.2; }
         }
         R.emit('motion', filt);
       };
@@ -131,18 +135,12 @@
     /* Espace / clic / tap = un coup. Maintenir plus longtemps = coup plus fort. */
     manual() {
       this.stopCurrent();
-      let downAt = 0;
       const down = (e) => {
         if (e.type === 'keydown' && (e.code !== 'Space' || e.repeat)) return;
         if (e.type === 'keydown') e.preventDefault();
-        downAt = performance.now();
+        R.stroke(1);
       };
-      const up = (e) => {
-        if (e.type === 'keyup' && e.code !== 'Space') return;
-        if (!downAt) return;
-        const held = performance.now() - downAt; downAt = 0;
-        R.stroke(0.7 + Math.min(1.2, held / 400));
-      };
+      const up = () => {};
       const pad = document.getElementById('stage');
       window.addEventListener('keydown', down); window.addEventListener('keyup', up);
       pad.addEventListener('pointerdown', down); pad.addEventListener('pointerup', up);
@@ -161,7 +159,7 @@
       let t = null;
       const loop = () => {
         const spm = getSpm();
-        R.stroke(0.85 + Math.random() * 0.3);
+        R.stroke(0.9 + Math.random() * 0.2);
         t = setTimeout(loop, 60000 / spm * (0.95 + Math.random() * 0.1));
       };
       t = setTimeout(loop, 300);

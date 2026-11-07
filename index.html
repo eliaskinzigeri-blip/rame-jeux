@@ -79,10 +79,32 @@
 </div>
 
 <section id="play" hidden>
-  <div id="stage"><canvas id="cv"></canvas><div id="count" class="count"></div></div>
+  <div id="stage">
+    <div id="gl"></div>
+    <canvas id="ov"></canvas>
+    <div class="hud">
+      <div class="hud-tl glass">
+        <div class="pace"><b id="h-pace">–:––</b><span>/500 m</span></div>
+        <div class="metrics">
+          <div><b id="h-spm">0</b><span>cpm</span></div>
+          <div><b id="h-watt">–</b><span>watts</span></div>
+          <div><b id="h-dist">0</b><span>mètres</span></div>
+          <div><b id="h-time">0:00</b><span>temps</span></div>
+        </div>
+        <div class="phase"><i id="h-phase"></i></div>
+      </div>
+      <div class="hud-tr glass" id="h-panel"></div>
+      <div class="hud-center" id="h-center"></div>
+      <div class="hud-bottom">
+        <div class="bar glass"><i id="h-prog"></i><span id="h-progtxt"></span></div>
+      </div>
+    </div>
+    <div id="count" class="count"></div>
+    <div id="loading" class="count small-txt" hidden>Chargement du lac…</div>
+  </div>
   <div class="playbar">
     <button class="ghost" id="quit">Quitter</button>
-    <span id="p-info"></span>
+    <button class="ghost" id="cam">Caméra : côté</button>
     <button class="ghost" id="mute">Son : oui</button>
   </div>
 </section>
@@ -106,11 +128,13 @@
 <script src="js/rower.js"></script>
 <script src="js/sources.js"></script>
 <script src="js/kit.js"></script>
-<script src="js/games/regate.js"></script>
-<script src="js/games/envol.js"></script>
-<script src="js/games/cadence.js"></script>
-<script src="js/games/corde.js"></script>
+<script src="js/games/course.js"></script>
+<script src="js/games/libre.js"></script>
+<script src="js/games/seance.js"></script>
+<script src="js/games/bouees.js"></script>
 <script src="js/games/kraken.js"></script>
+<script src="js/games/cadence.js"></script>
+<script type="module" src="js/world3d.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

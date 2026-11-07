@@ -40,7 +40,7 @@
 
   /* ---------- Liste des jeux ---------- */
   const recKey = (g, opts) => 'rec-' + g.id + '-' + (g.options || []).map(o => opts[o.key]).join('-');
-  const fmtScore = (g, v) => g.lowerIsBetter ? Kit.fmtTime(v) : g.id === 'corde' ? 'niveau ' + v : g.id === 'kraken' ? v + ' m' : v + ' pts';
+  const fmtScore = (g, v) => g.lowerIsBetter ? Kit.fmtTime(v) : (g.id === 'libre' || g.id === 'kraken') ? v + ' m' : g.id === 'seance' ? v + ' %' : v + ' pts';
 
   function renderGames() {
     const wrap = $('games'); wrap.innerHTML = '';
@@ -90,30 +90,56 @@
   $('setup-go').onclick = () => { $('setup').hidden = true; store.set('opts-' + current.id, currentOpts); start(); };
 
   /* ---------- Partie ---------- */
-  const cv = $('cv'), ctx = cv.getContext('2d');
-  let game = null, counting = 0, raf = 0, last = 0, W = 0, H = 0;
+  const ov = $('ov'), ctx = ov.getContext('2d');
+  let game = null, counting = 0, raf = 0, last = 0, W = 0, H = 0, playT = 0, hudT = 0;
   function resize() {
     const r = $('stage').getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
-    W = r.width; H = r.height; cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    W = r.width; H = r.height; ov.width = W * dpr; ov.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (window.World && World.ready) World.resize();
   }
   window.addEventListener('resize', () => { if (game) resize(); });
 
-  function start() {
+  function whenWorld() {
+    return new Promise(res => { if (window.World) return res(); window.addEventListener('world-ready', () => res(), { once: true }); });
+  }
+  async function start() {
     if (!Sources.current) { Sources.manual(); status('Aucune source choisie : mode manuel (Espace / tap).'); document.querySelector('[data-src="manual"]').classList.add('active'); }
     Kit.Sound.ctx();
     $('home').hidden = true; $('play').hidden = false; $('result').hidden = true;
+    $('loading').hidden = !!(window.World && World.ready);
+    await whenWorld();
+    try { World.init($('gl')); } catch (e) { $('loading').hidden = false; $('loading').textContent = "La 3D (WebGL) n'est pas disponible sur cet appareil."; return; }
+    $('loading').hidden = true;
+    World.reset();
     resize();
     R.resetSession();
     game = current.create(currentOpts);
     window.__rjPlaying = true;
-    counting = 3.999;
+    counting = 3.999; playT = 0; prevCount = 4;
     last = performance.now();
     if (wakeLock == null && navigator.wakeLock) navigator.wakeLock.request('screen').then(l => { wakeLock = l; l.addEventListener('release', () => { wakeLock = null; }); }).catch(() => {});
     cancelAnimationFrame(raf); raf = requestAnimationFrame(loop);
   }
   let wakeLock = null, prevCount = 4;
+  const fmtClock = Kit.fmtClock;
+  function updateHud(force) {
+    $('h-pace').textContent = R.paceText();
+    $('h-spm').textContent = Math.round(R.spm);
+    $('h-watt').textContent = R.power != null ? R.power : Math.round(2.8 * Math.pow(R.speed, 3));
+    $('h-dist').textContent = Math.round(R.distance);
+    $('h-time').textContent = fmtClock(playT);
+    $('h-phase').style.transform = `scaleX(${R.phase() < 0.5 ? R.phase() * 2 : 2 - R.phase() * 2})`;
+    const h = game.hud();
+    $('h-panel').innerHTML = h.panel || '';
+    $('h-panel').hidden = !h.panel;
+    const c = $('h-center');
+    if (h.centerHtml) c.innerHTML = h.center || ''; else c.textContent = h.center || '';
+    $('h-prog').style.width = Math.round(Math.min(1, Math.max(0, h.progress || 0)) * 1000) / 10 + '%';
+    $('h-prog').classList.toggle('danger', !!h.danger);
+    $('h-progtxt').textContent = h.progressText || '';
+  }
   function loop(now) {
-    const dt = Math.min(0.1, (now - last) / 1000); last = now;
+    const dt = Math.min(0.5, (now - last) / 1000); last = now;
     R.tick(dt);
     if (counting > 0) {
       counting -= dt;
@@ -121,10 +147,11 @@
       if (c !== prevCount) { prevCount = c; if (c > 0) Kit.Sound.beep(c === 1 ? 880 : 520, 0.12, 'triangle'); else Kit.Sound.beep(1200, 0.25, 'triangle'); }
       $('count').textContent = counting > 0 ? c : '';
       if (counting <= 0) { counting = 0; R.resetSession(); }
-    } else game.update(dt);
+    } else { game.update(dt); playT += dt; }
+    World.render(game.state(), dt);
     ctx.clearRect(0, 0, W, H);
-    game.draw(ctx, W, H);
-    $('p-info').textContent = `${R.speed.toFixed(1)} m/s · ${R.paceText()} /500 m · ${Math.round(R.spm)} cpm · ${Math.round(R.distance)} m${R.power != null ? ' · ' + R.power + ' W' : ''}`;
+    if (game.overlay) game.overlay(ctx, W, H);
+    hudT -= dt; if (hudT <= 0) { hudT = 0.1; updateHud(); }
     if (game.over) return finish();
     raf = requestAnimationFrame(loop);
   }
@@ -150,10 +177,12 @@
     renderGames(); renderProfile();
   }
   $('quit').onclick = home;
+  $('cam').onclick = () => { if (window.World && World.ready) $('cam').textContent = World.cycleCamera(); };
   $('r-home').onclick = home;
   $('r-again').onclick = start;
   $('mute').onclick = () => { Kit.Sound.muted = !Kit.Sound.muted; $('mute').textContent = 'Son : ' + (Kit.Sound.muted ? 'non' : 'oui'); };
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') { if (!$('setup').hidden) $('setup').hidden = true; else if (game) home(); } });
+  document.addEventListener('keydown', e => { if ((e.key === 'c' || e.key === 'C') && game) $('cam').click();
+    if (e.key === 'Escape') { if (!$('setup').hidden) $('setup').hidden = true; else if (game) home(); } });
 
   /* ---------- Bandeau live ---------- */
   setInterval(() => {

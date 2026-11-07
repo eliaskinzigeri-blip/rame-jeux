@@ -100,3 +100,64 @@ h2 { font-size: 18px; margin: 22px 0 6px; }
 .primary:disabled { opacity: .6; }
 .between { justify-content: space-between; }
 .link { background: none; border: 0; color: var(--accent); padding: 4px 0; text-decoration: underline; text-underline-offset: 3px; }
+
+/* ---------- Jeu 3D ---------- */
+#gl, #gl canvas, #ov { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#ov { pointer-events: none; }
+.hud { position: absolute; inset: 0; pointer-events: none; font-variant-numeric: tabular-nums; }
+.glass { background: rgba(10, 22, 32, .55); backdrop-filter: blur(10px) saturate(1.2); -webkit-backdrop-filter: blur(10px) saturate(1.2); border: 1px solid rgba(255,255,255,.14); border-radius: 18px; color: #fff; box-shadow: 0 8px 30px rgba(0,0,0,.18); }
+.hud-tl { position: absolute; left: 16px; top: 16px; padding: 14px 18px 12px; min-width: 230px; }
+.pace { display: flex; align-items: baseline; gap: 8px; }
+.pace b { font-size: 44px; font-weight: 800; letter-spacing: -.02em; line-height: 1; }
+.pace span { color: rgba(255,255,255,.7); font-size: 14px; }
+.metrics { display: grid; grid-template-columns: repeat(4, auto); gap: 4px 16px; margin-top: 10px; }
+.metrics div { display: flex; flex-direction: column; }
+.metrics b { font-size: 19px; font-weight: 700; }
+.metrics span { font-size: 11px; color: rgba(255,255,255,.65); text-transform: uppercase; letter-spacing: .06em; }
+.phase { height: 4px; border-radius: 99px; background: rgba(255,255,255,.15); margin-top: 10px; overflow: hidden; }
+.phase i { display: block; height: 100%; background: #2fd47a; transform-origin: left; transform: scaleX(0); }
+.hud-tr { position: absolute; right: 16px; top: 16px; padding: 12px 16px; min-width: 210px; max-width: 280px; }
+.hud-tr h4 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: rgba(255,255,255,.7); }
+.hud-tr .kv { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; font-size: 15px; }
+.hud-tr .kv span { color: rgba(255,255,255,.7); }
+.hud-tr .big { font-size: 32px; font-weight: 800; margin-bottom: 4px; }
+.hud-tr .big small { font-size: 13px; font-weight: 600; color: rgba(255,255,255,.7); }
+.hud-tr .step { font-size: 20px; font-weight: 800; margin-bottom: 6px; }
+.hud-tr .next { margin-top: 8px; font-size: 13px; color: rgba(255,255,255,.7); }
+.up { color: #5be3a6; } .down { color: #ff7b7b; }
+.rank { list-style: none; margin: 0; padding: 0; }
+.rank li { display: grid; grid-template-columns: 18px 10px 1fr auto; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 8px; font-size: 15px; }
+.rank li i { width: 10px; height: 10px; border-radius: 50%; }
+.rank li em { font-style: normal; color: rgba(255,255,255,.75); }
+.rank li.me { background: rgba(47,212,122,.2); font-weight: 700; }
+.hud-center { position: absolute; left: 50%; top: 22%; transform: translateX(-50%); font-size: 26px; font-weight: 800; color: #fff; text-shadow: 0 2px 14px rgba(0,0,0,.45); text-align: center; white-space: nowrap; }
+.zone { display: inline-block; padding: 8px 18px; border-radius: 99px; background: rgba(10,22,32,.55); backdrop-filter: blur(8px); font-size: 22px; }
+.zone.ok { background: rgba(47,212,122,.85); color: #062814; }
+.zone.mid { background: rgba(255,181,71,.9); color: #2b1a00; }
+.zone.low, .zone.high { background: rgba(255,90,90,.88); color: #fff; }
+.hud-bottom { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); width: min(560px, calc(100% - 32px)); }
+.bar { position: relative; height: 34px; overflow: hidden; border-radius: 99px; }
+.bar i { position: absolute; inset: 0 auto 0 0; width: 0; background: linear-gradient(90deg, rgba(47,212,122,.55), rgba(47,212,122,.85)); transition: width .1s linear; }
+.bar i.danger { background: linear-gradient(90deg, rgba(255,90,90,.6), rgba(255,90,90,.9)); }
+.bar span { position: relative; display: block; text-align: center; line-height: 34px; font-weight: 700; font-size: 14px; }
+.small-txt { font-size: 22px !important; background: #0b2233; }
+#loading[hidden] { display: none; }
+@media (max-width: 700px) {
+  .hud-tl { left: 10px; top: 10px; padding: 10px 12px; min-width: 0; }
+  .pace b { font-size: 30px; }
+  .metrics { grid-template-columns: repeat(2, auto); }
+  .metrics b { font-size: 15px; }
+  .hud-tr { right: 10px; top: 10px; min-width: 150px; max-width: 46vw; padding: 10px 12px; }
+  .hud-tr .kv, .rank li { font-size: 13px; }
+  .hud-center { top: 34%; font-size: 20px; }
+  .zone { font-size: 17px; }
+}
+
+/* cartes de jeux plus visuelles */
+.game { min-height: 170px; background:
+  linear-gradient(180deg, rgba(11,34,51,0) 0%, rgba(11,34,51,.92) 70%),
+  linear-gradient(160deg, color-mix(in srgb, var(--c) 55%, #0b2233) 0%, #0e3a4f 55%, #0b2233 100%); }
+.game::after { content: ""; position: absolute; left: -10%; right: -10%; top: 38px; height: 46px; opacity: .35;
+  background: radial-gradient(120px 30px at 30% 100%, #fff, transparent 70%), radial-gradient(160px 40px at 75% 100%, #fff, transparent 70%); filter: blur(6px); }
+.game h3, .game p, .game .rec { position: relative; z-index: 1; }
+.game h3 { margin-top: 48px; }

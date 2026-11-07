@@ -1,8 +1,8 @@
 // Cache hors-ligne simple : l'app marche sans réseau une fois ouverte.
-const CACHE = 'rame-jeux-v3';
+const CACHE = 'rame-jeux-v4';
 const FILES = ['./', 'index.html', 'style.css', 'manifest.webmanifest', 'icon.svg',
   'js/cloud.js', 'js/rower.js', 'js/sources.js', 'js/kit.js', 'js/main.js',
-  'js/games/regate.js', 'js/games/envol.js', 'js/games/cadence.js', 'js/games/corde.js', 'js/games/kraken.js'];
+  'js/games/course.js', 'js/games/libre.js', 'js/games/seance.js', 'js/games/bouees.js', 'js/games/kraken.js', 'js/games/cadence.js', 'js/world3d.js', 'js/vendor/three/three.module.min.js', 'js/vendor/three/Water.js', 'js/vendor/three/Sky.js'];
 self.addEventListener('install', e => e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting())));
 self.addEventListener('activate', e => e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())));
 self.addEventListener('fetch', e => {
