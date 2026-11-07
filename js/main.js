@@ -15,9 +15,14 @@
     try {
       if (kind === 'bluetooth') { status('Recherche du rameur… (allume la console et commence à ramer)'); await Sources.bluetooth(status); status('Rameur connecté. Donne quelques coups pour vérifier.'); }
       if (kind === 'motion') { await Sources.motion(); status('Pose le téléphone à plat sur le siège (ou attaché au chariot) et rame.'); }
+      if (kind === 'mic') {
+        await Sources.mic();
+        status(Sources.aux ? 'Micro actif pour le rythme, Bluetooth gardé pour les mesures.' : 'Micro actif. Rame quelques coups et regarde la barre de niveau.');
+        $('mic-row').hidden = false;
+      } else $('mic-row').hidden = true;
       if (kind === 'manual') { Sources.manual(); status('Appuie sur Espace (ou tape l\'écran de jeu) à chaque coup.'); }
       if (kind === 'sim') { Sources.simulate(simSpm); status('Simulation active.'); }
-      document.querySelectorAll('.src-btn').forEach(b => b.classList.toggle('active', b === btn));
+      document.querySelectorAll('.src-btn').forEach(b => b.classList.toggle('active', b === btn || (kind === 'mic' && Sources.aux && b.dataset.src === 'bluetooth')));
       store.set('src', kind);
       setLatencySource(kind);
     } catch (e) {
@@ -32,7 +37,23 @@
 
   /* ---------- Latence ---------- */
   // Retard typique entre l'attaque réelle et l'arrivée du coup dans l'app, par source.
-  const LAT_DEFAULT = { bluetooth: 650, motion: 120, manual: 40, sim: 0 };
+  const LAT_DEFAULT = { bluetooth: 650, motion: 120, mic: 50, manual: 40, sim: 0 };
+  Sources.micSensitivity = store.get('mic-sens', 1.8); $('mic-sens').value = Sources.micSensitivity;
+  $('mic-sens').addEventListener('input', e => { Sources.micSensitivity = +e.target.value; store.set('mic-sens', Sources.micSensitivity); });
+  let lvlT = 0;
+  R.on('level', ({ rms, thr }) => {
+    const now = performance.now(); if (now - lvlT < 40) return; lvlT = now;
+    const scale = Math.max(thr * 2.2, 0.01);
+    $('mic-lvl').style.width = Math.min(100, rms / scale * 100) + '%';
+    $('mic-thr').style.left = Math.min(100, thr / scale * 100) + '%';
+  });
+  // Diagnostic Bluetooth : fréquence des trames et données disponibles
+  setInterval(() => {
+    const st = Sources.btStats; if (!st || !Sources.current || Sources.current.kind !== 'bluetooth') { $('bt-diag').hidden = true; return; }
+    const fps = st.frames / Math.max(1, (performance.now() - st.since) / 1000);
+    $('bt-diag').hidden = false;
+    $('bt-diag').textContent = `Console : ${fps.toFixed(1)} trame/s · compteur de coups ${st.hasCount ? 'oui' : 'non'} · puissance ${st.hasPower ? 'oui' : 'non'}` + (fps < 2 ? ' → la console envoie peu de mesures : ajoute le Micro pour un rythme instantané.' : '');
+  }, 1000);
   let latKind = null;
   function setLatencySource(kind) {
     latKind = kind;

@@ -12,6 +12,7 @@ Aucune installation ni dépendance : HTML + JavaScript.
 |---|---|---|
 | Bluetooth FTMS | Service 0x1826, caractéristique Rower Data 0x2AD1 (cadence, coups, distance, allure, puissance) | Chrome/Edge sur PC et Android. Pas sur iPhone (sauf avec le navigateur Bluefy) |
 | Téléphone sur le siège | L'accéléromètre détecte chaque aller-retour du chariot | Tout téléphone (iPhone : il faut autoriser l'accès aux capteurs de mouvement) |
+| Micro (le plus réactif) | Détecte la montée du bruit de la roue ou de la sangle au début de la poussée (≈ 30-80 ms). Se combine avec le Bluetooth, qui garde les mesures | Tout appareil avec micro |
 | Manuel | Espace ou tap à chaque coup | Partout |
 | Simulation | Un rameur virtuel | Partout |
 

@@ -49,11 +49,18 @@
     <div class="src-grid">
       <button class="src-btn" data-src="bluetooth"><strong>Bluetooth (FTMS)</strong><span>Console connectée : vitesse, cadence et puissance réelles. Chrome/Edge sur PC ou Android.</span></button>
       <button class="src-btn" data-src="motion"><strong>Téléphone sur le siège</strong><span>L'accéléromètre détecte chaque aller-retour du chariot. Marche sur tout rameur.</span></button>
-      <button class="src-btn" data-src="manual"><strong>Manuel</strong><span>Espace ou tap à chaque coup (maintenir = coup plus fort). Pour tester.</span></button>
+      <button class="src-btn" data-src="mic"><strong>Micro · le plus réactif</strong><span>Entend la roue et la sangle accélérer dès l'attaque (≈ 50 ms). Pose l'appareil près du rameur. Se combine avec le Bluetooth, qui garde les mesures.</span></button>
+      <button class="src-btn" data-src="manual"><strong>Manuel</strong><span>Espace ou tap à chaque coup. Pour tester.</span></button>
       <button class="src-btn" data-src="sim"><strong>Simulation</strong><span>Un rameur virtuel rame à ta place. <label>cadence <input type="range" id="sim-spm" min="16" max="36" value="24"> <output id="sim-out">24</output></label></span></button>
     </div>
     <p class="status" id="status" role="status"></p>
     <div class="meter" id="stroke-meter" aria-hidden="true"><i></i></div>
+    <div class="miclevel" id="mic-row" hidden>
+      <div class="lat-info"><strong>Niveau du micro</strong><span>La barre doit dépasser le trait à chaque poussée, et pas au retour. Sinon, règle la sensibilité.</span></div>
+      <div class="lvl"><i id="mic-lvl"></i><b id="mic-thr"></b></div>
+      <label class="sens">Sensibilité <input type="range" id="mic-sens" min="1.2" max="4" step="0.1" value="1.8"></label>
+    </div>
+    <p class="diag" id="bt-diag" hidden></p>
     <div class="latency" id="latency-row" hidden>
       <div class="lat-info">
         <strong>Compensation de latence : <span id="lat-val">0</span> ms</strong>

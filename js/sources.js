@@ -32,7 +32,8 @@
 
   const Sources = {
     current: null,
-    stopCurrent() { if (this.current && this.current.stop) this.current.stop(); this.current = null; },
+    aux: null,
+    stopCurrent() { if (this.current && this.current.stop) this.current.stop(); this.current = null; if (this.aux) { this.aux.stop(); this.aux = null; } },
 
     bluetoothSupported() { return !!(navigator.bluetooth && navigator.bluetooth.requestDevice); },
 
@@ -59,6 +60,7 @@
       // (et n'envoie qu'environ 1 trame/s). Une montée brutale de puissance signale l'attaque
       // plus tôt : on déclenche le coup tout de suite et on ignore l'incrément qui suit.
       let lastCount = null, prevPower = 0, earlyAt = 0;
+      const stats = this.btStats = { frames: 0, since: performance.now(), hasCount: false, hasPower: false, spm: 0 };
       const handler = (ev) => {
         const d = parseRowerData(ev.target.value);
         const now = performance.now();
@@ -68,6 +70,9 @@
         else if (d.power === 0 || d.pace === 0) speed = 0;
         R.setReal({ speed, spm: d.spm, power: d.power, heartRate: d.heartRate });
         const strength = d.power ? Math.max(0.5, Math.min(1.8, d.power / 110)) : 1;
+        stats.frames++; if (d.strokeCount != null) stats.hasCount = true; if (d.power != null) stats.hasPower = true; if (d.spm) stats.spm = d.spm;
+        // Si le micro (ou un autre capteur rapide) donne le rythme, la console ne sert qu'aux mesures.
+        if (Sources.aux) { if (d.strokeCount != null) lastCount = d.strokeCount; if (d.power != null) prevPower = d.power; return; }
         if (d.power != null && d.power > 40 && d.power > prevPower * 1.5 + 15 && now - R._lastReal > 900) {
           earlyAt = now; R.stroke(strength);
         }
@@ -80,6 +85,9 @@
             earlyAt = 0;
           }
           lastCount = d.strokeCount;
+        } else if (d.spm && d.spm > 10 && now - R._lastReal > 60000 / d.spm * 1.15) {
+          // console sans compteur de coups : on cale les coups sur la cadence qu'elle annonce
+          R.stroke(strength);
         }
       };
       ch.addEventListener('characteristicvaluechanged', handler);
@@ -88,6 +96,7 @@
       const onDisc = () => { R.source = 'déconnecté'; onStatus && onStatus('Rameur déconnecté.'); };
       device.addEventListener('gattserverdisconnected', onDisc);
       this.current = {
+        kind: 'bluetooth',
         stop() {
           ch.removeEventListener('characteristicvaluechanged', handler);
           device.removeEventListener('gattserverdisconnected', onDisc);
@@ -130,6 +139,52 @@
       window.addEventListener('devicemotion', handler);
       R.source = 'Accéléromètre';
       this.current = { stop() { window.removeEventListener('devicemotion', handler); } };
+    },
+
+    /* MICRO : la roue (air ou magnétique) et la sangle font plus de bruit dès que la poussée
+       commence. On détecte cette montée du volume : environ 30-80 ms après l'attaque réelle.
+       Si le Bluetooth est connecté, il reste actif pour les mesures et le micro donne le rythme. */
+    micSensitivity: 1.8,
+    async mic() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error("Micro inaccessible dans ce navigateur.");
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+      const ac = Kit.Sound.ctx() || new AudioContext();
+      const src = ac.createMediaStreamSource(stream);
+      const hp = ac.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 120;   // coupe le grondement du sol
+      const an = ac.createAnalyser(); an.fftSize = 512; an.smoothingTimeConstant = 0;
+      src.connect(hp).connect(an);
+      const buf = new Float32Array(an.fftSize);
+      // On cherche une MONTÉE brutale du volume par rapport aux ~300 ms précédentes :
+      // le bruit de la roue qui décroît pendant le retour ne déclenche donc rien.
+      const hist = new Float32Array(48); let hi = 0;
+      let prev = 0, last = 0, peak = 0, avgPeak = 0, inStroke = false, n = 0;
+      const timer = setInterval(() => {
+        an.getFloatTimeDomainData(buf);
+        let sum = 0; for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
+        const rms = Math.sqrt(sum / buf.length), now = performance.now();
+        n++;
+        hist[hi++ % hist.length] = rms;
+        // niveau de référence : minimum entre 120 ms et 380 ms dans le passé
+        let ref = Infinity;
+        for (let k = 15; k < hist.length; k++) { const v = hist[(hi - 1 - k + hist.length * 4) % hist.length]; if (v < ref) ref = v; }
+        const thr = ref * this.micSensitivity + 0.003;
+        const minGap = Math.max(850, R.period * 1000 * 0.55);
+        if (n > hist.length && rms > thr && rms > prev && now - last > minGap) {
+          inStroke = true; last = now; peak = rms;
+          R.stroke(avgPeak ? Math.max(0.6, Math.min(1.6, rms / (avgPeak * 0.6))) : 1);
+        } else if (inStroke) {
+          peak = Math.max(peak, rms);
+          if (now - last > 600) { inStroke = false; avgPeak = avgPeak ? avgPeak * 0.8 + peak * 0.2 : peak; }
+        }
+        prev = rms;
+        R.emit('level', { rms, thr });
+      }, 8);
+      const mic = {
+        kind: 'mic',
+        stop() { clearInterval(timer); stream.getTracks().forEach(t => t.stop()); try { src.disconnect(); } catch (e) {} }
+      };
+      if (this.current && this.current.kind === 'bluetooth') { if (this.aux) this.aux.stop(); this.aux = mic; R.source = 'Bluetooth + micro'; }
+      else { this.stopCurrent(); this.current = mic; R.source = 'Micro'; }
     },
 
     /* Espace / clic / tap = un coup. Maintenir plus longtemps = coup plus fort. */
