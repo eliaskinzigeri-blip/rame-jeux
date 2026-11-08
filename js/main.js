@@ -234,8 +234,9 @@
     else he.className = 'hud-event';
   }
   function loop(now) {
-    const dt = Math.min(0.5, (now - last) / 1000); last = now;
-    R.tick(dt);
+    const real = (now - last) / 1000; last = now;
+    const dt = Math.min(0.5, real);
+    R.tick(Math.min(2, real));   // la physique suit le temps réel, même si l'appareil rame
     if (counting > 0) {
       counting -= dt;
       const c = Math.ceil(counting);
